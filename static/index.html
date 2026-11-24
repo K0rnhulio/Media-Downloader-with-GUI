@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Media Downloader</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 1.5rem;
+    }
+    .card {
+      width: 100%;
+      max-width: 540px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+    h1 { margin: 0 0 0.4rem; font-size: 1.5rem; }
+    p.subtitle { margin: 0 0 1.5rem; color: var(--muted); font-size: 0.95rem; }
+    label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; font-weight: 600; }
+    input, select, button {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    .field { margin-bottom: 1rem; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    button {
+      background: var(--accent);
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 0.4rem;
+      transition: background 0.15s ease;
+    }
+    button:hover:not(:disabled) { background: var(--accent-hover); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .progress-wrap {
+      margin-top: 1.25rem;
+      display: none;
+    }
+    .bar-bg {
+      width: 100%;
+      height: 10px;
+      background: #0f172a;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.25s ease;
+    }
+    .status {
+      margin-top: 0.6rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+      word-break: break-word;
+    }
+    .status.error { color: var(--error); }
+    .status.success { color: var(--success); }
+    .download-link {
+      display: none;
+      margin-top: 1rem;
+      text-align: center;
+      padding: 0.75rem;
+      border-radius: 10px;
+      background: var(--success);
+      color: #052e16;
+      font-weight: 700;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Media Downloader</h1>
+    <p class="subtitle">YouTube, Twitter/X, Facebook, Instagram, and TikTok</p>
+
+    <form id="download-form">
+      <div class="field">
+        <label for="url">Video URL</label>
+        <input id="url" type="url" placeholder="https://www.youtube.com/watch?v=..." required />
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="platform">Platform</label>
+          <select id="platform">
+            <option value="YouTube">YouTube</option>
+            <option value="Facebook">Facebook</option>
+            <option value="Instagram">Instagram</option>
+            <option value="TikTok">TikTok</option>
+            <option value="Twitter">Twitter / X</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="quality">Quality</label>
+          <select id="quality">
+            <option value="best">Best Quality</option>
+            <option value="medium">Medium Quality (720p)</option>
+            <option value="worst">Lowest Quality</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="submit-btn" type="submit">Download Video</button>
+    </form>
+
+    <div id="progress-wrap" class="progress-wrap">
+      <div class="bar-bg"><div id="bar-fill" class="bar-fill"></div></div>
+      <div id="status" class="status">Starting...</div>
+      <a id="download-link" class="download-link" href="#" download>Save File</a>
+    </div>
+  </main>
+
+  <script>
+    const urlInput = document.getElementById("url");
+    const platformSelect = document.getElementById("platform");
+    const qualitySelect = document.getElementById("quality");
+    const form = document.getElementById("download-form");
+    const submitBtn = document.getElementById("submit-btn");
+    const progressWrap = document.getElementById("progress-wrap");
+    const barFill = document.getElementById("bar-fill");
+    const statusEl = document.getElementById("status");
+    const downloadLink = document.getElementById("download-link");
+
+    let detectTimer = null;
+    urlInput.addEventListener("input", () => {
+      clearTimeout(detectTimer);
+      const val = urlInput.value.trim();
+      if (!val) return;
+      detectTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/detect?url=${encodeURIComponent(val)}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.platform) platformSelect.value = data.platform;
+        } catch {}
+      }, 250);
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      downloadLink.style.display = "none";
+      progressWrap.style.display = "block";
+      barFill.style.width = "0%";
+      statusEl.className = "status";
+      statusEl.textContent = "Submitting download job...";
+
+      try {
+        const res = await fetch("/api/download", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: urlInput.value.trim(),
+            platform: platformSelect.value,
+            quality: qualitySelect.value,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || "Failed to start download.");
+        }
+        await pollJob(data.job_id);
+      } catch (err) {
+        statusEl.className = "status error";
+        statusEl.textContent = err.message;
+        submitBtn.disabled = false;
+      }
+    });
+
+    async function pollJob(jobId) {
+      while (true) {
+        const res = await fetch(`/api/jobs/${jobId}`);
+        const job = await res.json();
+        if (!res.ok) {
+          throw new Error(job.detail || "Job lookup failed.");
+        }
+
+        barFill.style.width = `${Math.round(job.progress || 0)}%`;
+        statusEl.textContent = job.message || job.status;
+
+        if (job.status === "completed") {
+          barFill.style.width = "100%";
+          statusEl.className = "status success";
+          statusEl.textContent = `Ready: ${job.filename}`;
+          downloadLink.href = `/api/jobs/${jobId}/file`;
+          downloadLink.download = job.filename || "video.mp4";
+          downloadLink.style.display = "block";
+          submitBtn.disabled = false;
+          return;
+        }
+        if (job.status === "failed") {
+          statusEl.className = "status error";
+          statusEl.textContent = job.message || "Download failed.";
+          submitBtn.disabled = false;
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    }
+  </script>
+</body>
+</html>

@@ -39,6 +39,21 @@ A comprehensive multi-platform video downloader with a user-friendly GUI support
    run_gui.bat
    ```
 
+## Coolify / Docker Deployment
+
+1. Push this repository to GitHub/GitLab and create a new **Application** in Coolify using the **Dockerfile** build pack (or **Docker Compose** with `docker-compose.yaml`).
+2. Set **Port** to `8000` (or configure `PORT` in Coolify environment variables).
+3. Coolify's healthcheck can use `GET /health`.
+4. Optional environment variables:
+   - `DOWNLOAD_DIR` (default `/tmp/media_downloader_jobs`)
+   - `JOB_TTL_SECONDS` (default `1800`)
+   - `MAX_DOWNLOAD_WORKERS` (default `3`)
+
+To run the web UI locally:
+```bash
+uvicorn web_app:app --host 0.0.0.0 --port 8000
+```
+
 2. Enter the URL of the video you want to download
 3. Select the platform from the dropdown menu
 4. Choose the desired quality

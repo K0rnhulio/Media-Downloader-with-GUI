@@ -1,0 +1,17 @@
+services:
+  media-downloader:
+    build: .
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      - PORT=${PORT:-8000}
+      - DOWNLOAD_DIR=/tmp/media_downloader_jobs
+      - JOB_TTL_SECONDS=1800
+      - MAX_DOWNLOAD_WORKERS=3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os, urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ.get(\\\"PORT\\\", \\\"8000\\\")}/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

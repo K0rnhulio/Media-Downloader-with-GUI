@@ -1,0 +1,13 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.exe
+*.zip
+bin/
+ffmpeg/
+*.md
+test_*.py
+run_gui.bat
+video_downloader_gui.py
